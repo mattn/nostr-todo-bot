@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nostr TODO Bot - あなたのNostrタスク管理アシスタント</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 60px 40px;
+            color: white;
+            text-align: center;
+        }
+        .title {
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 16px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .subtitle {
+            font-size: 1.3em;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+        .content { padding: 40px; }
+        .section {
+            margin-bottom: 50px;
+        }
+        .section:last-child { margin-bottom: 0; }
+        .section-title {
+            font-size: 1.8em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid #667eea;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .feature {
+            background: #f9fafb;
+            padding: 24px;
+            border-radius: 12px;
+            border: 2px solid #f0f0f0;
+            transition: all 0.2s ease;
+        }
+        .feature:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
+        }
+        .feature-icon {
+            font-size: 2.5em;
+            margin-bottom: 12px;
+        }
+        .feature-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .feature-desc {
+            color: #666;
+            line-height: 1.6;
+        }
+        .command-list {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 20px;
+        }
+        .command {
+            padding: 16px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .command:last-child { border-bottom: none; }
+        .command-name {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+            margin-bottom: 6px;
+        }
+        .command-desc {
+            color: #666;
+            line-height: 1.5;
+        }
+        .cta-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+        }
+        .cta-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .cta-steps {
+            text-align: left;
+            display: inline-block;
+            margin: 20px auto;
+        }
+        .cta-step {
+            margin: 12px 0;
+            font-size: 1.1em;
+            line-height: 1.8;
+        }
+        .cta-step strong {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 10px;
+            border-radius: 6px;
+            margin-right: 8px;
+        }
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 0.9em;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .header { padding: 40px 20px; }
+            .content { padding: 20px; }
+            .title { font-size: 2em; }
+            .subtitle { font-size: 1.1em; }
+            .feature-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">📝 Nostr TODO Bot</div>
+            <div class="subtitle">
+                Nostr上で動作するシンプルで強力なタスク管理ボット<br>
+                メンションするだけで、あなた専用のTODOリストを管理
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <div class="section-title">✨ 特徴</div>
+                <div class="feature-grid">
+                    <div class="feature">
+                        <div class="feature-icon">🚀</div>
+                        <div class="feature-title">超高速</div>
+                        <div class="feature-desc">Cloudflare Workers上で動作し、世界中どこからでも高速レスポンス</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🔒</div>
+                        <div class="feature-title">プライベート</div>
+                        <div class="feature-desc">あなたのTODOはあなただけのもの。ユーザーごとに完全に分離</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">💬</div>
+                        <div class="feature-title">簡単操作</div>
+                        <div class="feature-desc">Nostrクライアントから直接メンションするだけで操作可能</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🌐</div>
+                        <div class="feature-title">Web表示</div>
+                        <div class="feature-desc">ブラウザで美しいUI表示。完了/未完了を一目で確認</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">📖 コマンド一覧</div>
+                <div class="command-list">
+                    <div class="command">
+                        <div class="command-name">list</div>
+                        <div class="command-desc">未完了のTODO一覧を表示します</div>
+                    </div>
+                    <div class="command">
+                        <div class="command-name">add &lt;内容&gt;</div>
+                        <div class="command-desc">新しいTODOを追加します（複数行対応）</div>
+                    </div>
+                    <div class="command">
+                        <div class="command-name">show &lt;ID&gt;</div>
+                        <div class="command-desc">指定したIDのTODOの詳細を表示します</div>
+                    </div>
+                    <div class="command">
+                        <div class="command-name">done &lt;ID&gt;</div>
+                        <div class="command-desc">指定したIDのTODOを完了にします</div>
+                    </div>
+                    <div class="command">
+                        <div class="command-name">delete &lt;ID&gt;</div>
+                        <div class="command-desc">指定したIDのTODOを削除します</div>
+                    </div>
+                    <div class="command">
+                        <div class="command-name">search &lt;キーワード&gt;</div>
+                        <div class="command-desc">キーワードでTODOを検索します</div>
+                    </div>
+                    <div class="command">
+                        <div class="command-name">web</div>
+                        <div class="command-desc">Web表示のURLを取得します</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="cta-section">
+                    <div class="cta-title">🎯 使い方は超簡単！</div>
+                    <div class="cta-steps">
+                        <div class="cta-step"><strong>1.</strong> Nostrクライアントでこのbotをメンション</div>
+                        <div class="cta-step"><strong>2.</strong> コマンドを送信（例: "list" や "add 買い物に行く"）</div>
+                        <div class="cta-step"><strong>3.</strong> botが即座に応答してTODOを管理</div>
+                        <div class="cta-step"><strong>4.</strong> "web" コマンドでブラウザ表示も可能</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Made with ❤️ by <a href="https://github.com/mattn" target="_blank">Yasuhiro Matsumoto (mattn)</a><br>
+            <a href="https://github.com/mattn/cloudflare-nostr-todo" target="_blank">GitHub</a> | Powered by Cloudflare Workers & Nostr
+        </div>
+    </div>
+</body>
+</html>
