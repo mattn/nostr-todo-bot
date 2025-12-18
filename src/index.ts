@@ -303,7 +303,7 @@ async function handleMentionDirect(mention: Event, env: Env): Promise<Response> 
 
     if (/^web$/i.test(content)) {
         const npub = nip19.npubEncode(pubkey);
-        const url = `https://nostr-todo.mattn-jp.workers.dev/${npub}`;
+        const url = `https://nostr-todo.compile-error.net/${npub}`;
         return JSONResponse(
             createReplyWithTags(env.TODO_NSEC, mention, url, []),
         );
@@ -351,7 +351,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
         const pubkey = decoded.data as string;
         
         // Try to get profile from cache
-        const cacheKey = `https://nostr-todo.mattn-jp.workers.dev/profile/${pubkey}`;
+        const cacheKey = `https://nostr-todo.compile-error.net/profile/${pubkey}`;
         let cachedResponse = await cache.match(cacheKey);
         let profile: any = { name: npub.substring(0, 12) + '...', picture: '' };
         
