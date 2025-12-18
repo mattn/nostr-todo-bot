@@ -378,7 +378,33 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                     await cache.put(cacheKey, profileResponse);
                 }
             } catch (e) {
-                console.error('Failed to fetch profile:', e);
+                console.error('Failed to fetch profile from relays:', e);
+            }
+            
+            // Fallback to HTTP API if relay fetch failed
+            if (!profile.picture && profile.name.startsWith('npub')) {
+                try {
+                    const fallbackUrl = `https://nostr-nullpoga.compile-error.net/profile/${npub}`;
+                    const fallbackResponse = await fetch(fallbackUrl);
+                    if (fallbackResponse.ok) {
+                        const metadata: any = await fallbackResponse.json();
+                        profile = {
+                            name: metadata.name || metadata.display_name || profile.name,
+                            picture: metadata.picture || ''
+                        };
+                        
+                        // Cache profile for 1 hour
+                        const profileResponse = new Response(JSON.stringify(profile), {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Cache-Control': 'public, max-age=3600'
+                            }
+                        });
+                        await cache.put(cacheKey, profileResponse);
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch profile from fallback API:', e);
+                }
             }
         }
         
