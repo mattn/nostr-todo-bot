@@ -10,6 +10,7 @@ import {
     finalizeEvent,
     nip19,
     SimplePool,
+    verifyEvent,
 } from "nostr-tools";
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
@@ -152,6 +153,14 @@ function cleanContent(content: string): string {
 
 async function handleMention(request: Request, env: Env): Promise<Response> {
     const mention: Event = await request.json();
+    
+    // Verify event signature
+    if (!verifyEvent(mention)) {
+        return JSONResponse(
+            createReplyWithTags(env.TODO_NSEC, mention, 'Invalid event signature', []),
+        );
+    }
+    
     const pubkey = mention.pubkey;
     const content = cleanContent(mention.content);
 
@@ -289,6 +298,14 @@ async function handleMention(request: Request, env: Env): Promise<Response> {
 
 async function handleCall(request: Request, env: Env): Promise<Response> {
     const mention: Event = await request.json();
+    
+    // Verify event signature
+    if (!verifyEvent(mention)) {
+        return JSONResponse(
+            createReplyWithTags(env.TODO_NSEC, mention, 'Invalid event signature', []),
+        );
+    }
+    
     const message = `はい
 
 使い方:
