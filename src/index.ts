@@ -383,7 +383,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
         }
         
         const { results } = await env.nostr_todo.prepare(
-            'SELECT user_id, content, completed FROM todos WHERE pubkey = ? ORDER BY completed ASC, created_at ASC'
+            'SELECT user_id, content, completed, created_at FROM todos WHERE pubkey = ? ORDER BY completed ASC, created_at ASC'
         ).bind(pubkey).all();
         
         const incompleteTodos = results.filter((r: any) => r.completed === 0);
@@ -399,12 +399,14 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                     incomplete: incompleteTodos.map((t: any) => ({
                         id: t.user_id,
                         content: t.content,
-                        completed: false
+                        completed: false,
+                        created_at: t.created_at
                     })),
                     completed: completedTodos.map((t: any) => ({
                         id: t.user_id,
                         content: t.content,
-                        completed: true
+                        completed: true,
+                        created_at: t.created_at
                     }))
                 }
             }, null, 2), {
@@ -555,6 +557,12 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
             color: #333;
             font-size: 1.05em;
         }
+        .todo-date {
+            margin-top: 8px;
+            font-size: 0.85em;
+            color: #999;
+            font-style: italic;
+        }
         .todo.completed .todo-content {
             text-decoration: line-through;
             color: #999;
@@ -592,6 +600,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                         <div class="todo-id">${escapeHtml(String(todo.user_id))}</div>
                     </div>
                     <div class="todo-content">${escapeHtml(todo.content)}</div>
+                    <div class="todo-date">${new Date(todo.created_at * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</div>
                 </div>
                 `).join('')}
             </div>
@@ -607,6 +616,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                         <div class="todo-id">${escapeHtml(String(todo.user_id))}</div>
                     </div>
                     <div class="todo-content">${escapeHtml(todo.content)}</div>
+                    <div class="todo-date">${new Date(todo.created_at * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</div>
                 </div>
                 `).join('')}
             </div>
