@@ -1,6 +1,6 @@
 # Nostr TODO Bot
 
-A TODO list bot for Nostr that runs on Cloudflare Workers.
+A TODO list bot for Nostr that runs on Cloudflare Workers. ☑
 
 ## Features
 
