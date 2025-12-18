@@ -345,7 +345,7 @@ async function handleCall(request: Request, env: Env): Promise<Response> {
     );
 }
 
-async function handleWebView(npub: string, env: Env): Promise<Response> {
+async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = 'html'): Promise<Response> {
     try {
         const decoded = nip19.decode(npub);
         const pubkey = decoded.data as string;
@@ -367,16 +367,16 @@ async function handleWebView(npub: string, env: Env): Promise<Response> {
                         name: metadata.name || metadata.display_name || profile.name,
                         picture: metadata.picture || ''
                     };
+                    
+                    // Cache profile for 1 hour
+                    const profileResponse = new Response(JSON.stringify(profile), {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Cache-Control': 'public, max-age=3600'
+                        }
+                    });
+                    await cache.put(cacheKey, profileResponse);
                 }
-                
-                // Cache profile for 1 hour
-                const profileResponse = new Response(JSON.stringify(profile), {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'public, max-age=3600'
-                    }
-                });
-                await cache.put(cacheKey, profileResponse);
             } catch (e) {
                 console.error('Failed to fetch profile:', e);
             }
@@ -388,6 +388,32 @@ async function handleWebView(npub: string, env: Env): Promise<Response> {
         
         const incompleteTodos = results.filter((r: any) => r.completed === 0);
         const completedTodos = results.filter((r: any) => r.completed === 1);
+        
+        // JSON format
+        if (format === 'json') {
+            return new Response(JSON.stringify({
+                npub,
+                pubkey,
+                profile,
+                todos: {
+                    incomplete: incompleteTodos.map((t: any) => ({
+                        id: t.user_id,
+                        content: t.content,
+                        completed: false
+                    })),
+                    completed: completedTodos.map((t: any) => ({
+                        id: t.user_id,
+                        content: t.content,
+                        completed: true
+                    }))
+                }
+            }, null, 2), {
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            });
+        }
         
         const htmlContent = `<!DOCTYPE html>
 <html lang="ja">
@@ -616,7 +642,9 @@ export default {
 
         if (request.method === "GET") {
             if (pathArray[1] && pathArray[1].startsWith("npub")) {
-                return handleWebView(pathArray[1], env);
+                const format = pathArray[1].endsWith('.json') ? 'json' : 'html';
+                const npub = pathArray[1].replace(/\.json$/, '');
+                return handleWebView(npub, env, format);
             }
             return env.ASSETS.fetch(request);
         }
