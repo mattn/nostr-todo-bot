@@ -151,6 +151,15 @@ function cleanContent(content: string): string {
     return content.replace(/nostr:[a-z0-9]+/gi, '').trim();
 }
 
+function escapeHtml(str: string): string {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 async function handleMention(request: Request, env: Env): Promise<Response> {
     const mention: Event = await request.json();
     
@@ -371,7 +380,7 @@ async function handleWebView(npub: string, env: Env): Promise<Response> {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TODO List - ${profile.name}</title>
+    <title>TODO List - ${escapeHtml(profile.name)}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -523,10 +532,10 @@ async function handleWebView(npub: string, env: Env): Promise<Response> {
     <div class="container">
         <div class="header">
             <div class="profile">
-                ${profile.picture ? `<img src="${profile.picture}" alt="${profile.name}" class="profile-icon" onerror="this.style.display='none'">` : '<div class="profile-icon"></div>'}
+                ${profile.picture ? `<img src="${escapeHtml(profile.picture)}" alt="${escapeHtml(profile.name)}" class="profile-icon" onerror="this.style.display='none'">` : '<div class="profile-icon"></div>'}
                 <div class="profile-info">
-                    <div class="profile-name">${profile.name}</div>
-                    <div class="profile-npub">${npub}</div>
+                    <div class="profile-name">${escapeHtml(profile.name)}</div>
+                    <div class="profile-npub">${escapeHtml(npub)}</div>
                 </div>
             </div>
         </div>
@@ -540,9 +549,9 @@ async function handleWebView(npub: string, env: Env): Promise<Response> {
                 ${incompleteTodos.length === 0 ? '<div class="empty-state">🎉 すべて完了しました！</div>' : incompleteTodos.map((todo: any) => `
                 <div class="todo">
                     <div class="todo-header">
-                        <div class="todo-id">${todo.user_id}</div>
+                        <div class="todo-id">${escapeHtml(String(todo.user_id))}</div>
                     </div>
-                    <div class="todo-content">${todo.content}</div>
+                    <div class="todo-content">${escapeHtml(todo.content)}</div>
                 </div>
                 `).join('')}
             </div>
@@ -555,9 +564,9 @@ async function handleWebView(npub: string, env: Env): Promise<Response> {
                 ${completedTodos.length === 0 ? '<div class="empty-state">完了したTODOはありません</div>' : completedTodos.map((todo: any) => `
                 <div class="todo completed">
                     <div class="todo-header">
-                        <div class="todo-id">${todo.user_id}</div>
+                        <div class="todo-id">${escapeHtml(String(todo.user_id))}</div>
                     </div>
-                    <div class="todo-content">${todo.content}</div>
+                    <div class="todo-content">${escapeHtml(todo.content)}</div>
                 </div>
                 `).join('')}
             </div>
