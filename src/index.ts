@@ -160,9 +160,18 @@ function escapeHtml(str: string): string {
         .replace(/'/g, '&#039;');
 }
 
-async function handleMention(request: Request, env: Env): Promise<Response> {
-    const mention: Event = await request.json();
-    
+function getHelpMessage(): string {
+    return `使い方:
+list - TODO一覧
+add <内容> - TODO追加
+show <ID> - TODO表示
+done <ID> - TODO完了
+delete <ID> - TODO削除
+search <キーワード> - TODO検索
+web - Web表示URL`;
+}
+
+async function handleMentionDirect(mention: Event, env: Env): Promise<Response> {
     // Verify event signature
     if (!verifyEvent(mention)) {
         return JSONResponse(
@@ -301,8 +310,13 @@ async function handleMention(request: Request, env: Env): Promise<Response> {
     }
 
     return JSONResponse(
-        createReplyWithTags(env.TODO_NSEC, mention, 'Usage: list | add <content> | delete <id> | done <id> | search <keyword> | show <id> | web', []),
+        createReplyWithTags(env.TODO_NSEC, mention, getHelpMessage(), []),
     );
+}
+
+async function handleMention(request: Request, env: Env): Promise<Response> {
+    const mention: Event = await request.json();
+    return handleMentionDirect(mention, env);
 }
 
 async function handleCall(request: Request, env: Env): Promise<Response> {
@@ -315,19 +329,19 @@ async function handleCall(request: Request, env: Env): Promise<Response> {
         );
     }
     
-    const message = `はい
-
-使い方:
-list - TODO一覧
-add <内容> - TODO追加
-show <ID> - TODO表示
-done <ID> - TODO完了
-delete <ID> - TODO削除
-search <キーワード> - TODO検索
-web - Web表示URL`;
+    const content = cleanContent(mention.content);
+    
+    // "todoさん" の後にコマンドがあれば handleMention へ
+    if (/^todo\s*さん\s+.+/i.test(content)) {
+        // contentから "todoさん" を削除してhandleMentionへ
+        const modifiedContent = content.replace(/^todo\s*さん\s+/i, '');
+        const modifiedMention = { ...mention, content: modifiedContent };
+        // handleMentionを直接呼び出し（Requestオブジェクトは不要）
+        return handleMentionDirect(modifiedMention, env);
+    }
     
     return JSONResponse(
-        createReplyWithTags(env.TODO_NSEC, mention, message, []),
+        createReplyWithTags(env.TODO_NSEC, mention, `はい\n\n${getHelpMessage()}`, []),
     );
 }
 
