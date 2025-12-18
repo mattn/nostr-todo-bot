@@ -147,6 +147,75 @@
         .footer a:hover {
             text-decoration: underline;
         }
+        .example-box {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 20px;
+        }
+        .chat-example {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .chat-message {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .chat-message.user {
+            flex-direction: row-reverse;
+        }
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            flex-shrink: 0;
+        }
+        .chat-message.user .chat-avatar {
+            background: #10b981;
+        }
+        .chat-bubble {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-width: 70%;
+            position: relative;
+        }
+        .chat-message.user .chat-bubble {
+            background: #10b981;
+            color: white;
+        }
+        .chat-name {
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #667eea;
+        }
+        .chat-message.user .chat-name {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .chat-text {
+            line-height: 1.5;
+            color: #333;
+        }
+        .chat-message.user .chat-text {
+            color: white;
+        }
+        .arrow-down {
+            text-align: center;
+            font-size: 2em;
+            color: #667eea;
+            margin: 8px 0;
+        }
         @media (max-width: 600px) {
             body { padding: 10px; }
             .header { padding: 40px 20px; }
@@ -154,6 +223,7 @@
             .title { font-size: 2em; }
             .subtitle { font-size: 1.1em; }
             .feature-grid { grid-template-columns: 1fr; }
+            .chat-bubble { max-width: 85%; }
         }
     </style>
 </head>
@@ -190,6 +260,45 @@
                         <div class="feature-icon">🌐</div>
                         <div class="feature-title">Web表示</div>
                         <div class="feature-desc">ブラウザで美しいUI表示。完了/未完了を一目で確認</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">💬 使い方の例</div>
+                <div class="example-box">
+                    <div class="chat-example">
+                        <div class="chat-message user">
+                            <div class="chat-avatar">👤</div>
+                            <div class="chat-bubble">
+                                <div class="chat-name">あなた</div>
+                                <div class="chat-text">@todoさん add 牛乳を買う</div>
+                            </div>
+                        </div>
+                        <div class="arrow-down">↓</div>
+                        <div class="chat-message">
+                            <div class="chat-avatar">🤖</div>
+                            <div class="chat-bubble">
+                                <div class="chat-name">TODO Bot</div>
+                                <div class="chat-text">Added: 1</div>
+                            </div>
+                        </div>
+                        <div class="arrow-down">↓</div>
+                        <div class="chat-message user">
+                            <div class="chat-avatar">👤</div>
+                            <div class="chat-bubble">
+                                <div class="chat-name">あなた</div>
+                                <div class="chat-text">@todoさん list</div>
+                            </div>
+                        </div>
+                        <div class="arrow-down">↓</div>
+                        <div class="chat-message">
+                            <div class="chat-avatar">🤖</div>
+                            <div class="chat-bubble">
+                                <div class="chat-name">TODO Bot</div>
+                                <div class="chat-text">1. 牛乳を買う</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
