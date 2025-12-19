@@ -345,6 +345,49 @@ async function handleCall(request: Request, env: Env): Promise<Response> {
     );
 }
 
+async function getRecentUsers(env: Env, limit: number = 10): Promise<any[]> {
+    const { results } = await env.nostr_todo.prepare(
+        'SELECT pubkey, MAX(created_at) as last_created FROM todos GROUP BY pubkey ORDER BY last_created DESC LIMIT ?'
+    ).bind(limit).all();
+    
+    const users = [];
+    for (const row of results) {
+        const pubkey = (row as any).pubkey;
+        const npub = nip19.npubEncode(pubkey);
+        
+        const cacheKey = `https://nostr-todo.compile-error.net/profile/${pubkey}`;
+        let cachedResponse = await cache.match(cacheKey);
+        let profile: any = { name: npub.substring(0, 12) + '...', picture: '' };
+        
+        if (cachedResponse) {
+            profile = await cachedResponse.json();
+        } else {
+            try {
+                const fallbackUrl = `https://nostr-nullpoga.compile-error.net/profile/${npub}`;
+                const fallbackResponse = await fetch(fallbackUrl);
+                if (fallbackResponse.ok) {
+                    const metadata: any = await fallbackResponse.json();
+                    profile = {
+                        name: metadata.name || metadata.display_name || profile.name,
+                        picture: metadata.picture || ''
+                    };
+                    
+                    const profileResponse = new Response(JSON.stringify(profile), {
+                        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' }
+                    });
+                    await cache.put(cacheKey, profileResponse);
+                }
+            } catch (e) {
+                console.error('Failed to fetch profile:', e);
+            }
+        }
+        
+        users.push({ npub, profile });
+    }
+    
+    return users;
+}
+
 async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = 'html'): Promise<Response> {
     try {
         const decoded = nip19.decode(npub);
@@ -677,11 +720,51 @@ export default {
         console.log(`${request.method}: ${request.url} `);
 
         if (request.method === "GET") {
+            console.log('GET pathname:', pathname);
+            
+            // Top page first
+            if (pathname === "/" || pathname === "/index.html") {
+                console.log('Top page handler triggered');
+                const recentUsers = await getRecentUsers(env, 8);
+                console.log('Recent users count:', recentUsers.length);
+                // ASSETS.fetch() uses only the path part to serve from public/
+                const indexHtml = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
+                let htmlContent = await indexHtml.text();
+                
+                if (recentUsers.length > 0) {
+                    console.log('Inserting avatars for users:', recentUsers.map(u => u.profile.name).join(', '));
+                    const avatarsHtml = `
+            <div class="recent-users">
+                <div class="recent-users-title">最近のユーザー</div>
+                <div class="avatar-list">
+                    ${recentUsers.map(u => `<a href="/${u.npub}" class="avatar-link" title="${escapeHtml(u.profile.name)}">${u.profile.picture ? `<img src="${escapeHtml(u.profile.picture)}" alt="${escapeHtml(u.profile.name)}" class="avatar-img" onerror="this.style.display='none'">` : '<div class="avatar-placeholder"></div>'}</a>`).join('')}
+                </div>
+            </div>`;
+                    // More flexible replacement - insert before closing header div
+                    const replaced = htmlContent.replace(/(.*<div class="subtitle">.*?<\/div>)\s*(<\/div>\s*<div class="content">)/s, `$1${avatarsHtml}\n        $2`);
+                    console.log('Replacement succeeded:', replaced !== htmlContent);
+                    htmlContent = replaced;
+                    
+                    const avatarCss = `.recent-users{margin-top:30px;text-align:center}.recent-users-title{font-size:.9em;opacity:.8;margin-bottom:16px}.avatar-list{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.avatar-link{display:block;width:50px;height:50px;border-radius:50%;border:3px solid rgba(255,255,255,.3);overflow:hidden;transition:all .2s ease;background:rgba(255,255,255,.2)}.avatar-link:hover{transform:scale(1.15);border-color:rgba(255,255,255,.8);box-shadow:0 4px 12px rgba(0,0,0,.3)}.avatar-img{width:100%;height:100%;object-fit:cover}.avatar-placeholder{width:100%;height:100%;background:rgba(255,255,255,.2)}`;
+                    htmlContent = htmlContent.replace('</style>', avatarCss + '</style>');
+                }
+                
+                return new Response(htmlContent, {
+                    headers: { 
+                        'Content-Type': 'text/html; charset=utf-8',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+            }
+            
             if (pathArray[1] && pathArray[1].startsWith("npub")) {
                 const format = pathArray[1].endsWith('.json') ? 'json' : 'html';
                 const npub = pathArray[1].replace(/\.json$/, '');
                 return handleWebView(npub, env, format);
             }
+            
             return env.ASSETS.fetch(request);
         }
         if (request.method === "POST" && pathArray[1] === "mention") {
