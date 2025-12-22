@@ -148,7 +148,7 @@ function JSONResponse(value: any): Response {
 }
 
 function cleanContent(content: string): string {
-    return content.replace(/nostr:[a-z0-9]+/gi, '').trim();
+    return content.replace(/nostr:(?!nevent)[a-z0-9]+/gi, '').trim();
 }
 
 function escapeHtml(str: string): string {
@@ -158,6 +158,10 @@ function escapeHtml(str: string): string {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function linkifyNostrRefs(text: string): string {
+    return text.replace(/nostr:(nevent1[a-zA-Z0-9]+)/g, '<a href="https://njump.compile-error.net/$1" target="_blank" rel="noopener noreferrer" style="color: #667eea; text-decoration: underline;">nostr:$1</a>');
 }
 
 function getHelpMessage(): string {
@@ -178,7 +182,7 @@ async function handleMentionDirect(mention: Event, env: Env): Promise<Response> 
             createReplyWithTags(env.TODO_NSEC, mention, 'Invalid event signature', []),
         );
     }
-    
+
     const pubkey = mention.pubkey;
     const content = cleanContent(mention.content);
 
@@ -321,16 +325,16 @@ async function handleMention(request: Request, env: Env): Promise<Response> {
 
 async function handleCall(request: Request, env: Env): Promise<Response> {
     const mention: Event = await request.json();
-    
+
     // Verify event signature
     if (!verifyEvent(mention)) {
         return JSONResponse(
             createReplyWithTags(env.TODO_NSEC, mention, 'Invalid event signature', []),
         );
     }
-    
+
     const content = cleanContent(mention.content);
-    
+
     // "todoさん" の後にコマンドがあれば handleMention へ
     if (/^todo\s*さん\s+.+/i.test(content)) {
         // contentから "todoさん" を削除してhandleMentionへ
@@ -339,7 +343,7 @@ async function handleCall(request: Request, env: Env): Promise<Response> {
         // handleMentionを直接呼び出し（Requestオブジェクトは不要）
         return handleMentionDirect(modifiedMention, env);
     }
-    
+
     return JSONResponse(
         createReplyWithTags(env.TODO_NSEC, mention, `はい\n\n${getHelpMessage()}`, []),
     );
@@ -349,16 +353,16 @@ async function getRecentUsers(env: Env, limit: number = 10): Promise<any[]> {
     const { results } = await env.nostr_todo.prepare(
         'SELECT pubkey, MAX(created_at) as last_created FROM todos GROUP BY pubkey ORDER BY last_created DESC LIMIT ?'
     ).bind(limit).all();
-    
+
     const users = [];
     for (const row of results) {
         const pubkey = (row as any).pubkey;
         const npub = nip19.npubEncode(pubkey);
-        
+
         const cacheKey = `https://nostr-todo.compile-error.net/profile/${pubkey}`;
         let cachedResponse = await cache.match(cacheKey);
         let profile: any = { name: npub.substring(0, 12) + '...', picture: '' };
-        
+
         if (cachedResponse) {
             profile = await cachedResponse.json();
         } else {
@@ -371,7 +375,7 @@ async function getRecentUsers(env: Env, limit: number = 10): Promise<any[]> {
                         name: metadata.name || metadata.display_name || profile.name,
                         picture: metadata.picture || ''
                     };
-                    
+
                     const profileResponse = new Response(JSON.stringify(profile), {
                         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' }
                     });
@@ -381,10 +385,10 @@ async function getRecentUsers(env: Env, limit: number = 10): Promise<any[]> {
                 console.error('Failed to fetch profile:', e);
             }
         }
-        
+
         users.push({ npub, profile });
     }
-    
+
     return users;
 }
 
@@ -392,12 +396,12 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
     try {
         const decoded = nip19.decode(npub);
         const pubkey = decoded.data as string;
-        
+
         // Try to get profile from cache
         const cacheKey = `https://nostr-todo.compile-error.net/profile/${pubkey}`;
         let cachedResponse = await cache.match(cacheKey);
         let profile: any = { name: npub.substring(0, 12) + '...', picture: '' };
-        
+
         if (cachedResponse) {
             profile = await cachedResponse.json();
         } else {
@@ -410,7 +414,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                         name: metadata.name || metadata.display_name || profile.name,
                         picture: metadata.picture || ''
                     };
-                    
+
                     // Cache profile for 1 hour
                     const profileResponse = new Response(JSON.stringify(profile), {
                         headers: {
@@ -423,7 +427,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
             } catch (e) {
                 console.error('Failed to fetch profile from relays:', e);
             }
-            
+
             // Fallback to HTTP API if relay fetch failed
             if (!profile.picture && profile.name.startsWith('npub')) {
                 try {
@@ -435,7 +439,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                             name: metadata.name || metadata.display_name || profile.name,
                             picture: metadata.picture || ''
                         };
-                        
+
                         // Cache profile for 1 hour
                         const profileResponse = new Response(JSON.stringify(profile), {
                             headers: {
@@ -450,14 +454,14 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                 }
             }
         }
-        
+
         const { results } = await env.nostr_todo.prepare(
             'SELECT user_id, content, completed, created_at FROM todos WHERE pubkey = ? ORDER BY completed ASC, created_at ASC'
         ).bind(pubkey).all();
-        
+
         const incompleteTodos = results.filter((r: any) => r.completed === 0);
         const completedTodos = results.filter((r: any) => r.completed === 1);
-        
+
         // JSON format
         if (format === 'json') {
             return new Response(JSON.stringify({
@@ -485,7 +489,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                 }
             });
         }
-        
+
         const htmlContent = `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -512,6 +516,21 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 40px;
             color: white;
+            position: relative;
+        }
+        .home-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 1.5em;
+            opacity: 0.8;
+            transition: all 0.2s ease;
+        }
+        .home-link:hover {
+            opacity: 1;
+            transform: scale(1.1);
         }
         .profile {
             display: flex;
@@ -648,6 +667,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
 <body>
     <div class="container">
         <div class="header">
+            <a href="/" class="home-link" title="トップページへ">🏠</a>
             <div class="profile">
                 ${profile.picture ? `<img src="${escapeHtml(profile.picture)}" alt="${escapeHtml(profile.name)}" class="profile-icon" onerror="this.style.display='none'">` : '<div class="profile-icon"></div>'}
                 <div class="profile-info">
@@ -668,7 +688,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                     <div class="todo-header">
                         <div class="todo-id">${escapeHtml(String(todo.user_id))}</div>
                     </div>
-                    <div class="todo-content">${escapeHtml(todo.content)}</div>
+                    <div class="todo-content">${linkifyNostrRefs(escapeHtml(todo.content))}</div>
                     <div class="todo-date">${new Date(todo.created_at * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</div>
                 </div>
                 `).join('')}
@@ -684,7 +704,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
                     <div class="todo-header">
                         <div class="todo-id">${escapeHtml(String(todo.user_id))}</div>
                     </div>
-                    <div class="todo-content">${escapeHtml(todo.content)}</div>
+                    <div class="todo-content">${linkifyNostrRefs(escapeHtml(todo.content))}</div>
                     <div class="todo-date">${new Date(todo.created_at * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</div>
                 </div>
                 `).join('')}
@@ -693,7 +713,7 @@ async function handleWebView(npub: string, env: Env, format: 'html' | 'json' = '
     </div>
 </body>
 </html>`;
-        
+
         return new Response(htmlContent, {
             headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
@@ -720,19 +740,13 @@ export default {
         console.log(`${request.method}: ${request.url} `);
 
         if (request.method === "GET") {
-            console.log('GET pathname:', pathname);
-            
-            // Top page first
-            if (pathname === "/" || pathname === "/index.html") {
-                console.log('Top page handler triggered');
+            // Top page - check before any other handler
+            if (pathname === "/" || pathname === "/index.html" || pathname === "") {
                 const recentUsers = await getRecentUsers(env, 8);
-                console.log('Recent users count:', recentUsers.length);
-                // ASSETS.fetch() uses only the path part to serve from public/
-                const indexHtml = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
+                const indexHtml = await env.ASSETS.fetch(new Request(new URL('/index.html.template', request.url)));
                 let htmlContent = await indexHtml.text();
-                
+
                 if (recentUsers.length > 0) {
-                    console.log('Inserting avatars for users:', recentUsers.map(u => u.profile.name).join(', '));
                     const avatarsHtml = `
             <div class="recent-users">
                 <div class="recent-users-title">最近のユーザー</div>
@@ -740,17 +754,14 @@ export default {
                     ${recentUsers.map(u => `<a href="/${u.npub}" class="avatar-link" title="${escapeHtml(u.profile.name)}">${u.profile.picture ? `<img src="${escapeHtml(u.profile.picture)}" alt="${escapeHtml(u.profile.name)}" class="avatar-img" onerror="this.style.display='none'">` : '<div class="avatar-placeholder"></div>'}</a>`).join('')}
                 </div>
             </div>`;
-                    // More flexible replacement - insert before closing header div
-                    const replaced = htmlContent.replace(/(.*<div class="subtitle">.*?<\/div>)\s*(<\/div>\s*<div class="content">)/s, `$1${avatarsHtml}\n        $2`);
-                    console.log('Replacement succeeded:', replaced !== htmlContent);
-                    htmlContent = replaced;
-                    
+                    htmlContent = htmlContent.replace(/(.*<div class="subtitle">.*?<\/div>)\s*(<\/div>\s*<div class="content">)/s, `$1${avatarsHtml}\n        $2`);
+
                     const avatarCss = `.recent-users{margin-top:30px;text-align:center}.recent-users-title{font-size:.9em;opacity:.8;margin-bottom:16px}.avatar-list{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.avatar-link{display:block;width:50px;height:50px;border-radius:50%;border:3px solid rgba(255,255,255,.3);overflow:hidden;transition:all .2s ease;background:rgba(255,255,255,.2)}.avatar-link:hover{transform:scale(1.15);border-color:rgba(255,255,255,.8);box-shadow:0 4px 12px rgba(0,0,0,.3)}.avatar-img{width:100%;height:100%;object-fit:cover}.avatar-placeholder{width:100%;height:100%;background:rgba(255,255,255,.2)}`;
                     htmlContent = htmlContent.replace('</style>', avatarCss + '</style>');
                 }
-                
+
                 return new Response(htmlContent, {
-                    headers: { 
+                    headers: {
                         'Content-Type': 'text/html; charset=utf-8',
                         'Cache-Control': 'no-cache, no-store, must-revalidate',
                         'Pragma': 'no-cache',
@@ -758,13 +769,13 @@ export default {
                     }
                 });
             }
-            
+
             if (pathArray[1] && pathArray[1].startsWith("npub")) {
                 const format = pathArray[1].endsWith('.json') ? 'json' : 'html';
                 const npub = pathArray[1].replace(/\.json$/, '');
                 return handleWebView(npub, env, format);
             }
-            
+
             return env.ASSETS.fetch(request);
         }
         if (request.method === "POST" && pathArray[1] === "mention") {
