@@ -218,14 +218,12 @@ async function handleMentionDirect(mention: Event, env: Env): Promise<Response> 
             );
         }
 
-        const { results } = await env.nostr_todo.prepare(
-            'SELECT COALESCE(MAX(user_id), 0) + 1 as next_id FROM todos WHERE pubkey = ?'
-        ).bind(pubkey).all();
-        const userId = (results[0] as any).next_id;
-
-        await env.nostr_todo.prepare(
-            'INSERT INTO todos (pubkey, content, completed, created_at, user_id) VALUES (?, ?, 0, ?, ?)'
-        ).bind(pubkey, todoContent, Math.floor(Date.now() / 1000), userId).run();
+        const inserted = await env.nostr_todo.prepare(
+            `INSERT INTO todos (pubkey, content, completed, created_at, user_id)
+             VALUES (?1, ?2, 0, ?3, (SELECT COALESCE(MAX(user_id), 0) + 1 FROM todos WHERE pubkey = ?1))
+             RETURNING user_id`
+        ).bind(pubkey, todoContent, Math.floor(Date.now() / 1000)).first();
+        const userId = (inserted as any).user_id;
 
         return JSONResponse(
             createReplyWithTags(env.TODO_NSEC, mention, `Added: ${userId}`, []),
